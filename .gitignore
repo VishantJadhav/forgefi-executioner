@@ -1,0 +1,13 @@
+# Node modules
+node_modules/
+
+# Environment Variables (CRITICAL)
+.env
+
+# Build outputs
+dist/
+build/
+
+# TypeScript/Misc
+*.tsbuildinfo
+.DS_Store
