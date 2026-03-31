@@ -1,6 +1,5 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { Program, AnchorProvider, Wallet } from "@coral-xyz/anchor";
-import cron from "node-cron";
 import dotenv from "dotenv";
 import bs58 from "bs58";
 import idl from "./idl/idl.json"; 
@@ -16,16 +15,19 @@ const executionerKeypair = Keypair.fromSecretKey(bs58.decode(process.env.EXECUTI
 const wallet = new Wallet(executionerKeypair);
 const provider = new AnchorProvider(connection, wallet, { preflightCommitment: "confirmed" });
 
-const TREASURY_PUBKEY = executionerKeypair.publicKey; 
 const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID!);
 
-// CLEAN INITIALIZATION: We are back on Anchor 0.29, so this works perfectly now!
+// 🚨 CRITICAL: This MUST match the exact Phantom Wallet address you hardcoded in lib.rs!
+const TREASURY_PUBKEY = new PublicKey("HrAkqgXZA1fkwoJ6tdDcsu84R67yR7KCpB8NUR6oZ5NC"); 
+
 const program = new Program(idl as any, PROGRAM_ID, provider);
 
-const SECONDS_IN_A_DAY = 86400; 
+// Updated to match the new 48-hour Guillotine window from your smart contract
+const SECONDS_IN_48_HOURS = 172800; 
 
 console.log(`\n💀 THE EXECUTIONER IS ONLINE 💀`);
-console.log(`Bot Wallet / Treasury: ${executionerKeypair.publicKey.toBase58()}\n`);
+console.log(`Bot Wallet (Paying Gas): ${executionerKeypair.publicKey.toBase58()}`);
+console.log(`Routing Slashed Funds To: ${TREASURY_PUBKEY.toBase58()}\n`);
 
 // ==========================================
 // 2. THE SCAN & SLASH LOGIC
@@ -33,55 +35,58 @@ console.log(`Bot Wallet / Treasury: ${executionerKeypair.publicKey.toBase58()}\n
 const scanAndSlash = async () => {
     console.log(`[${new Date().toLocaleTimeString()}] Scanning blockchain for expired vaults...`);
 
-    try {
-        // FIX: The exact size of your new UserStake struct is 60 bytes.
-        // (8 discriminator + 32 pubkey + 8 stake + 1 committed + 1 completed + 1 missed + 8 time + 1 bump)
-        // This filter forces the bot to ignore the old "zombie" accounts from Week 1.
-        const allVaults = await program.account.userStake.all([
-            { dataSize: 60 } 
-        ]);
-        const currentTimestamp = Math.floor(Date.now() / 1000);
+    // The exact size of your new UserStake struct is 60 bytes.
+    const allVaults = await program.account.userStake.all([
+        { dataSize: 60 } 
+    ]);
+    const currentTimestamp = Math.floor(Date.now() / 1000);
 
-        for (const vault of allVaults) {
-            const data = vault.account as any; 
-            const vaultPubkey = vault.publicKey;
-            
-            const totalDaysProcessed = data.daysCompleted + data.missedDays;
+    for (const vault of allVaults) {
+        const data = vault.account as any; 
+        const vaultPubkey = vault.publicKey;
+        
+        const totalDaysProcessed = data.daysCompleted + data.missedDays;
 
-            if (totalDaysProcessed >= data.daysCommitted) continue;
+        // If they finished all their days, skip them
+        if (totalDaysProcessed >= data.daysCommitted) continue;
 
-            const timeSinceLastWorkout = currentTimestamp - data.lastCheckIn.toNumber();
+        const timeSinceLastWorkout = currentTimestamp - data.lastCheckIn.toNumber();
 
-            if (timeSinceLastWorkout > SECONDS_IN_A_DAY) {
-                console.log(`🩸 VIOLATION DETECTED: Vault ${vaultPubkey.toBase58()} missed their day. Executing 10% Bleed...`);
+        // Check if they violated the 48-hour window
+        if (timeSinceLastWorkout > SECONDS_IN_48_HOURS) {
+            console.log(`🩸 VIOLATION DETECTED: Vault ${vaultPubkey.toBase58()} missed their 48-hour window. Executing 10% Bleed...`);
 
-                try {
-                    const tx = await program.methods
-                        .slashMissedDay()
-                        .accounts({
-                            liquidator: executionerKeypair.publicKey, 
-                            treasury: TREASURY_PUBKEY,                
-                            userStake: vaultPubkey,                   
-                        })
-                        .signers([executionerKeypair]) 
-                        .rpc();
+            try {
+                const tx = await program.methods
+                    .slashMissedDay()
+                    .accounts({
+                        liquidator: executionerKeypair.publicKey, 
+                        treasury: TREASURY_PUBKEY,                
+                        userStake: vaultPubkey,                   
+                    })
+                    .signers([executionerKeypair]) 
+                    .rpc();
 
-                    console.log(`✅ SLAUGHTER SUCCESSFUL. 10% bled to Treasury. TX: ${tx}\n`);
-                } catch (slashError) {
-                    console.error(`❌ FAILED TO SLASH VAULT ${vaultPubkey.toBase58()}:`, slashError);
-                }
+                console.log(`✅ SLAUGHTER SUCCESSFUL. 10% bled to Treasury. TX: ${tx}\n`);
+            } catch (slashError) {
+                console.error(`❌ FAILED TO SLASH VAULT ${vaultPubkey.toBase58()}:`, slashError);
             }
         }
-    } catch (error) {
-        console.error("Critical Scanner Error:", error);
     }
+    console.log(`Scan complete. No more targets found.`);
 };
 
 // ==========================================
-// 3. THE HEARTBEAT (Cron Job)
+// 3. EXECUTE AND SHUTDOWN (For GitHub Actions)
 // ==========================================
-cron.schedule("*/5 * * * *", () => {
-    scanAndSlash();
-});
+const main = async () => {
+    await scanAndSlash();
+};
 
-scanAndSlash();
+main().then(() => {
+    console.log("Executioner sweep finished successfully. Disconnecting...");
+    process.exit(0); // Clean exit so GitHub Action gets a Green Checkmark
+}).catch((error) => {
+    console.error("Critical Scanner Error:", error);
+    process.exit(1); // Error exit so GitHub Action flags as Failed
+});
