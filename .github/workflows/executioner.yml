@@ -1,0 +1,30 @@
+name: ForgeFi Executioner Bot
+
+on:
+  schedule:
+    # Runs at the top of every hour (e.g., 1:00, 2:00, 3:00)
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allows you to manually click a button to run it immediately
+
+jobs:
+  sweep-and-slash:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Standard stable Node version
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Execute Slashing Script
+        env:
+          # These pull securely from your GitHub Secrets
+          EXECUTIONER_PRIVATE_KEY: ${{ secrets.EXECUTIONER_PRIVATE_KEY }}
+          PROGRAM_ID: ${{ secrets.PROGRAM_ID }}
+        run: npx ts-node crank.ts
