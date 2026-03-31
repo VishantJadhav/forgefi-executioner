@@ -25,5 +25,9 @@ jobs:
         env:
           EXECUTIONER_PRIVATE_KEY: ${{ secrets.EXECUTIONER_PRIVATE_KEY }}
           PROGRAM_ID: ${{ secrets.PROGRAM_ID }}
+
+          # FIX: Explicitly give the bot the Solana Devnet connection
+          RPC_URL: "https://api.devnet.solana.com"
+          
         # FIX: Using npx guarantees it finds ts-node even if not installed globally
         run: npx ts-node crank.ts
