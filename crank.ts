@@ -83,10 +83,13 @@ const main = async () => {
     await scanAndSlash();
 };
 
-main().then(() => {
+main().then(async () => {
     console.log("Executioner sweep finished successfully. Disconnecting...");
+    // Give Solana's background sockets 500ms to gracefully close on Windows
+    await new Promise(resolve => setTimeout(resolve, 500)); 
     process.exit(0); // Clean exit so GitHub Action gets a Green Checkmark
-}).catch((error) => {
+}).catch(async (error) => {
     console.error("Critical Scanner Error:", error);
+    await new Promise(resolve => setTimeout(resolve, 500)); 
     process.exit(1); // Error exit so GitHub Action flags as Failed
 });
