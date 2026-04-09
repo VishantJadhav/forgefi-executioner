@@ -22,8 +22,8 @@ const TREASURY_PUBKEY = new PublicKey("HrAkqgXZA1fkwoJ6tdDcsu84R67yR7KCpB8NUR6oZ
 
 const program = new Program(idl as any, PROGRAM_ID, provider);
 
-// Updated to match the new 48-hour Guillotine window from your smart contract
-const SECONDS_IN_48_HOURS = 172800; 
+// [DEMO MODE ACTIVATED]: Dropped to 60 seconds
+const SECONDS_IN_48_HOURS = 60; 
 
 console.log(`\n💀 THE EXECUTIONER IS ONLINE 💀`);
 console.log(`Bot Wallet (Paying Gas): ${executionerKeypair.publicKey.toBase58()}`);
@@ -35,7 +35,8 @@ console.log(`Routing Slashed Funds To: ${TREASURY_PUBKEY.toBase58()}\n`);
 const scanAndSlash = async () => {
     console.log(`[${new Date().toLocaleTimeString()}] Scanning blockchain for expired vaults...`);
 
-    // The exact size of your new UserStake struct is 60 bytes.
+    // FIX: Put the shield back up! 
+    // This strictly filters for 60-byte accounts, completely ignoring the 50-byte ghost accounts from yesterday.
     const allVaults = await program.account.userStake.all([
         { dataSize: 60 } 
     ]);
@@ -52,9 +53,9 @@ const scanAndSlash = async () => {
 
         const timeSinceLastWorkout = currentTimestamp - data.lastCheckIn.toNumber();
 
-        // Check if they violated the 48-hour window
+        // Check if they violated the window
         if (timeSinceLastWorkout > SECONDS_IN_48_HOURS) {
-            console.log(`🩸 VIOLATION DETECTED: Vault ${vaultPubkey.toBase58()} missed their 48-hour window. Executing 10% Bleed...`);
+            console.log(`🩸 VIOLATION DETECTED: Vault ${vaultPubkey.toBase58()} missed their window. Executing 10% Bleed...`);
 
             try {
                 const tx = await program.methods
