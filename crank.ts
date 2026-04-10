@@ -38,7 +38,7 @@ const scanAndSlash = async () => {
     // FIX: Put the shield back up! 
     // This strictly filters for 60-byte accounts, completely ignoring the 50-byte ghost accounts from yesterday.
     const allVaults = await program.account.userStake.all([
-        { dataSize: 60 } 
+        { dataSize: 63 } 
     ]);
     const currentTimestamp = Math.floor(Date.now() / 1000);
 
