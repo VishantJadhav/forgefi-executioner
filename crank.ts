@@ -36,7 +36,7 @@ const scanAndSlash = async () => {
     console.log(`[${new Date().toLocaleTimeString()}] Scanning blockchain for expired vaults...`);
 
     // FIX: Put the shield back up! 
-    // This strictly filters for 60-byte accounts, completely ignoring the 50-byte ghost accounts from yesterday.
+    // This strictly filters for 63-byte accounts, completely ignoring the 60-byte ghost accounts from yesterday.
     const allVaults = await program.account.userStake.all([
         { dataSize: 63 } 
     ]);
