@@ -33,16 +33,20 @@ console.log(`Routing Slashed Funds To: ${TREASURY_PUBKEY.toBase58()}\n`);
 // 2. THE SCAN & SLASH LOGIC
 // ==========================================
 const scanAndSlash = async () => {
-    console.log(`[${new Date().toLocaleTimeString()}] Scanning blockchain for expired vaults...`);
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+
+    // ---------------------------------------------------------
+    // SWEEP 1: LONE WOLF VAULTS
+    // ---------------------------------------------------------
+    console.log(`[${new Date().toLocaleTimeString()}] Scanning blockchain for expired LONE WOLF vaults...`);
 
     // FIX: Put the shield back up! 
     // This strictly filters for 63-byte accounts, completely ignoring the 60-byte ghost accounts from yesterday.
-    const allVaults = await program.account.userStake.all([
+    const allLoneWolves = await program.account.userStake.all([
         { dataSize: 63 } 
     ]);
-    const currentTimestamp = Math.floor(Date.now() / 1000);
 
-    for (const vault of allVaults) {
+    for (const vault of allLoneWolves) {
         const data = vault.account as any; 
         const vaultPubkey = vault.publicKey;
         
@@ -55,7 +59,7 @@ const scanAndSlash = async () => {
 
         // Check if they violated the window
         if (timeSinceLastWorkout > SECONDS_IN_48_HOURS) {
-            console.log(`🩸 VIOLATION DETECTED: Vault ${vaultPubkey.toBase58()} missed their window. Executing 10% Bleed...`);
+            console.log(`🩸 LONE WOLF VIOLATION: Vault ${vaultPubkey.toBase58()} missed their window. Executing 10% Bleed...`);
 
             try {
                 const tx = await program.methods
@@ -64,7 +68,7 @@ const scanAndSlash = async () => {
                         liquidator: executionerKeypair.publicKey, 
                         treasury: TREASURY_PUBKEY,                
                         userStake: vaultPubkey,                   
-                    })
+                    } as any)
                     .signers([executionerKeypair]) 
                     .rpc();
 
@@ -74,7 +78,55 @@ const scanAndSlash = async () => {
             }
         }
     }
-    console.log(`Scan complete. No more targets found.`);
+
+    // ---------------------------------------------------------
+    // SWEEP 2: SQUAD VAULTS (BLOOD PACT)
+    // ---------------------------------------------------------
+    console.log(`\n[${new Date().toLocaleTimeString()}] Scanning blockchain for expired SQUAD VAULTS...`);
+    
+    // Fetch all V2 Squad Vaults
+    const allSquadVaults = await program.account.squadVaultV2.all();
+
+    for (const vault of allSquadVaults) {
+      const data = vault.account as any;
+      const vaultPubkey = vault.publicKey;
+
+      // Ignore vaults that haven't fully started or are already dead
+      if (!data.protocolActive || data.missedDays === 999) continue;
+
+      // Check the clocks for all players
+      const p1Time = currentTimestamp - data.p1LastCheckIn.toNumber();
+      const p2Time = currentTimestamp - data.p2LastCheckIn.toNumber();
+      
+      let p3Time = 0;
+      const emptyPubKey = "11111111111111111111111111111111"; // Default System Program address
+      if (data.playerThree.toBase58() !== emptyPubKey) {
+        p3Time = currentTimestamp - data.p3LastCheckIn.toNumber();
+      }
+
+      // Drop the Guillotine if ANY player is over the 60 second limit
+      if (p1Time > SECONDS_IN_48_HOURS || p2Time > SECONDS_IN_48_HOURS || p3Time > SECONDS_IN_48_HOURS) {
+        console.log(`🩸 SQUAD VIOLATION DETECTED: Vault ${vaultPubkey.toBase58()} missed their window. Executing 10% Bleed...`);
+        
+        try {
+          const tx = await program.methods
+            .slashSquad()
+            .accounts({
+              liquidator: executionerKeypair.publicKey, 
+              treasury: TREASURY_PUBKEY,     
+              squadVault: vaultPubkey,
+            } as any)
+            .signers([executionerKeypair])
+            .rpc();
+
+          console.log(`✅ SQUAD SLAUGHTER SUCCESSFUL. 10% bled to Treasury. TX: ${tx}\n`);
+        } catch (slashError) {
+          console.error(`❌ FAILED TO SLASH SQUAD ${vaultPubkey.toBase58()}:`, slashError);
+        }
+      }
+    }
+
+    console.log(`\nScan complete. No more targets found.`);
 };
 
 // ==========================================
