@@ -43,7 +43,7 @@ const scanAndSlash = async () => {
     // FIX: Put the shield back up! 
     // This strictly filters for 63-byte accounts, completely ignoring the 60-byte ghost accounts from yesterday.
     const allLoneWolves = await program.account.userStake.all([
-        { dataSize: 63 } 
+        { dataSize: 95 } 
     ]);
 
     for (const vault of allLoneWolves) {
@@ -85,7 +85,9 @@ const scanAndSlash = async () => {
     console.log(`\n[${new Date().toLocaleTimeString()}] Scanning blockchain for expired SQUAD VAULTS...`);
     
     // Fetch all V2 Squad Vaults
-    const allSquadVaults = await program.account.squadVaultV2.all();
+    const allSquadVaults = await program.account.squadVaultV2.all([
+        {dataSize : 193}
+    ]);
 
     for (const vault of allSquadVaults) {
       const data = vault.account as any;
