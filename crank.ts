@@ -86,7 +86,7 @@ const scanAndSlash = async () => {
     
     // Fetch all V2 Squad Vaults
     const allSquadVaults = await program.account.squadVaultV2.all([
-        {dataSize : 219}
+        {dataSize : 209}
     ]);
 
     for (const vault of allSquadVaults) {
