@@ -85,7 +85,9 @@ const scanAndSlash = async () => {
     console.log(`\n[${new Date().toLocaleTimeString()}] Scanning blockchain for expired SQUAD VAULTS...`);
     
     // Fetch all V2 Squad Vaults
-    const allSquadVaults = await program.account.squadVaultV2.all();
+    const allSquadVaults = await program.account.squadVaultV2.all([
+        {dataSize : 219}
+    ]);
 
     for (const vault of allSquadVaults) {
       const data = vault.account as any;
