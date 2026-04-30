@@ -16,10 +16,12 @@
     "@solana/web3.js": "^1.98.4",
     "bs58": "^6.0.0",
     "dotenv": "^17.3.1",
-    "node-cron": "^4.2.1"
+    "node-cron": "^4.2.1",
+    "node-telegram-bot-api": "^0.67.0"
   },
   "devDependencies": {
     "@types/node-cron": "^3.0.11",
+    "@types/node-telegram-bot-api": "^0.64.14",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.2"
   }

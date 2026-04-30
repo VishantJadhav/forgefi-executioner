@@ -3,6 +3,7 @@ import { Program, AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import dotenv from "dotenv";
 import bs58 from "bs58";
 import idl from "./idl/idl.json"; 
+import TelegramBot from 'node-telegram-bot-api';
 
 dotenv.config();
 
@@ -24,6 +25,18 @@ const program = new Program(idl as any, PROGRAM_ID, provider);
 
 // [DEMO MODE ACTIVATED]: Dropped to 60 seconds
 const SECONDS_IN_48_HOURS = 60; 
+
+// 🚨 INITIALIZE TELEGRAM BOT
+const token = process.env.TELEGRAM_BOT_TOKEN!;
+const bot = new TelegramBot(token, { polling: false }); // polling: false because this is a script, not a server
+
+// [DEMO MODE]: total window is 60 seconds, warn them at 45 seconds (15 seconds left).
+// If in production (48 hours), warn them at 44 hours.
+const WARNING_THRESHOLD_SECONDS = 45;
+
+// 🚨 FOR THE DEMO: Your personal Telegram Chat ID. 
+// (You can get this by messaging @userinfobot on Telegram)
+const DEMO_CHAT_ID = "5803250417";
 
 console.log(`\n💀 THE EXECUTIONER IS ONLINE 💀`);
 console.log(`Bot Wallet (Paying Gas): ${executionerKeypair.publicKey.toBase58()}`);
@@ -77,6 +90,32 @@ const scanAndSlash = async () => {
                 console.error(`❌ FAILED TO SLASH VAULT ${vaultPubkey.toBase58()}:`, slashError);
             }
         }
+
+        // 2. 🚨 THE DEATH KNELL WARNING (NEW) 🚨
+        else if (timeSinceLastWorkout > WARNING_THRESHOLD_SECONDS) {
+            const timeLeft = SECONDS_IN_48_HOURS - timeSinceLastWorkout;
+            
+            console.log(`⚠️ WARNING: Vault ${vaultPubkey.toBase58()} is critically close to bleeding. Sending Death Knell...`);
+            
+            const message = `
+                🩸 <b>FORGEFI DEATH KNELL</b> 🩸
+
+                Lifter: <code>${vaultPubkey.toBase58().slice(0, 8)}...</code>
+                Time Remaining: <b>${timeLeft} seconds</b>
+
+                The Executioner is sharpening his blade. Your Solana is about to bleed to the treasury. 
+                Get to the gym and verify your workout immediately. No mercy.
+            `;
+
+            try {
+                // Send the message to Telegram
+                await bot.sendMessage(DEMO_CHAT_ID, message, { parse_mode: 'HTML' });
+                console.log("🔔 Death Knell sent successfully.");
+            } catch (error) {
+                console.error("❌ Failed to send Telegram warning:", error);
+            }
+        }
+    
     }
 
     // ---------------------------------------------------------
