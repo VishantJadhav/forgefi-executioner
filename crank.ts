@@ -46,8 +46,11 @@ console.log(`Routing Slashed Funds To: ${TREASURY_PUBKEY.toBase58()}\n`);
 // 2. THE SCAN & SLASH LOGIC
 // ==========================================
 const scanAndSlash = async () => {
-    const currentTimestamp = Math.floor(Date.now() / 1000);
-
+// 🚨 SYNC WITH BLOCKCHAIN TIME 🚨
+    const slot = await connection.getSlot();
+    const currentTimestamp = await connection.getBlockTime(slot) || Math.floor(Date.now() / 1000);
+    
+    console.log(`⏱️ Local Time: ${Math.floor(Date.now() / 1000)} | Devnet Time: ${currentTimestamp}`);
     // ---------------------------------------------------------
     // SWEEP 1: LONE WOLF VAULTS
     // ---------------------------------------------------------
