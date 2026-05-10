@@ -24,7 +24,7 @@ const TREASURY_PUBKEY = new PublicKey("HrAkqgXZA1fkwoJ6tdDcsu84R67yR7KCpB8NUR6oZ
 const program = new Program(idl as any, PROGRAM_ID, provider);
 
 // [DEMO MODE ACTIVATED]: Dropped to 60 seconds
-const SECONDS_IN_48_HOURS = 60; 
+const SECONDS_IN_48_HOURS = 150; 
 
 // 🚨 INITIALIZE TELEGRAM BOT
 const token = process.env.TELEGRAM_BOT_TOKEN!;
@@ -32,7 +32,7 @@ const bot = new TelegramBot(token, { polling: false }); // polling: false becaus
 
 // [DEMO MODE]: total window is 60 seconds, warn them at 45 seconds (15 seconds left).
 // If in production (48 hours), warn them at 44 hours.
-const WARNING_THRESHOLD_SECONDS = 45;
+const WARNING_THRESHOLD_SECONDS = 100;
 
 // 🚨 FOR THE DEMO: Your personal Telegram Chat ID. 
 // (You can get this by messaging @userinfobot on Telegram)
